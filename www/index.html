@@ -41,7 +41,7 @@
   <div ng-show="configComplete" ng-class="{'slideAll animateAll': showmenu, 'all animateAll': !showmenu}">
     <!-- NAV BAR -->
     <div ng-view class="window" ng-click="closeMenu()" ng-cloak></div>
-    <div ng-show="!hasPopup" class="navbar" ng-cloak>
+    <div ng-show="!hasPopup" ng-class="{'navbar navbarSlide': showmenu, 'navbar': !showmenu}" ng-cloak>
         <img id="menubutton" ng-class="{'rotated': showmenu, 'notRotated': !showmenu}" ng-click="toggleMenu()" ng-show='!requesting' src="img/MenuButton.png">
         <a href={{returnPath}} ng-click="back()" ng-cloak>
             <img id="menubutton" ng-show='requesting' src="img/WhiteArrowRound.png">
