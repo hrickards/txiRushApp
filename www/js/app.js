@@ -62,11 +62,14 @@ app.controller("AppController", function($scope, $rootScope, $http, $route, $loc
     $rootScope.showFooter = true;
     $rootScope.configComplete = false;
     
+    $rootScope.locations = ["Maseeh","Mccormick","Baker","Burton Conner","Macgregor","New House","Next House","Simmons","Student Center","77 Mass Ave","Stata @ Vassar","Media Lab @ Ames"];
+    $rootScope.requestHistory = [];
     $rootScope.requests = {};
+    $rootScope.totals = {};
     $rootScope.routes = {};
     $rootScope.vans = [];
     $rootScope.me = {
-          name : '',
+          name : 'Anonymous Rushee',
           contact : ''
         }
 
@@ -92,6 +95,11 @@ app.controller("AppController", function($scope, $rootScope, $http, $route, $loc
         $rootScope.notLogged = true;
         $rootScope.isBrother = false;
         $rootScope.isCoordinator = false;
+        $rootScope.isDriving = false;
+        $rootScope.me = {
+          name : 'Anonymous Rushee',
+          contact : ''
+        }
         $rootScope.showmenu=($rootScope.showmenu) ? false : true;
     }
 
@@ -109,21 +117,40 @@ app.controller("AppController", function($scope, $rootScope, $http, $route, $loc
     };
     $rootScope.back = function(){
       $rootScope.requesting=false;
+      $location.path($rootScope.returnPath);
     }
 
     $rootScope.setPath = function(path){
+      console.log("SETTING RETURN PATH: ", path);
         $rootScope.returnPath=path;
     };
 
     $rootScope.refresh = function(){
+        $rootScope.currentUser.fetch({
+          success : function(object){
+            $rootScope.isDriving = object.get("isDriving");
+            // var brotherQuery = new Parse.Query(Parse.Object.extend("Brother"));
+            // brotherQuery.equalTo("contact", $rootScope.currentUser.get("contact"));
+            // brotherQuery.first({
+            //   success : function(brother){
+            //     if (brother.get("isDriving")){
+            //       $rootScope.isDriving = true;
+            //     }
+            //     console.log("REFRESHING BROTHER ISDRIVING VAR: ", brother.get("isDriving"));
+            //   },
+            //   error : function(object, error){
+            //     console.log("FAILED TO REFRESH BROTHER ISDRIVING VAR: ", error);
+            //   }
+            // });
+            console.log("REFRESHED USER DATA: ", $rootScope.isDriving);
+          },
+          error : function(object, error){
+            console.log("FAILED TO REFRESH USER DATA: ", error);
+          }
+        })
         parseLogic.getVans();
         parseLogic.getRequests();
     }
-
-    $("#window").ready(function() {
-            // Animate loader off screen
-            $("#loader").hide();
-    });
 
 });
 

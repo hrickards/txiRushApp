@@ -19,6 +19,9 @@ app.factory('parseLogic', function($rootScope, $location){
 	      	success : function(brothers){
 	      		$rootScope.drivers = [];
 	      		$rootScope.brothers = brothers;
+	      		$rootScope.brothers.sort(function(a, b){
+	      			return a.get("delta") - b.get("delta");
+	      		});
 
 		        for (var i = 0; i < brothers.length; i++){
 		        	var currBrother = $rootScope.brothers[i];
@@ -116,6 +119,7 @@ app.factory('parseLogic', function($rootScope, $location){
 	      			var key = routes[i].get("name");
 	      			var locations = routes[i].get("locations");
 	      			$rootScope.routes[key] = locations;
+	      			$rootScope.totals[key] = 0;
 
 	      			for (var j = 0; j < locations.length; j++){
 	      				$rootScope.requests[locations[j]] = [];
@@ -123,6 +127,7 @@ app.factory('parseLogic', function($rootScope, $location){
 	      		}
 		        console.log("ROUTES RETRIEVAL SUCCESS: ", $rootScope.routes);
 		        console.log("REQUESTS UPDATED: ", $rootScope.requests);
+		        console.log("REQUEST TOTALS UPDATED: ", $rootScope.totals);
 		        $("#loader").hide();		        
 		    },
 		    error : function(error){
@@ -134,19 +139,31 @@ app.factory('parseLogic', function($rootScope, $location){
 
 	service.getRequests = function(){
 		$("#loader").show();
-		//Reset requests to avoid duplicates
+		//Reset requests and totals to avoid duplicates
 		for (var key in $rootScope.requests){
 			$rootScope.requests[key] = [];
 		};
+		for (var loc in $rootScope.totals){
+			$rootScope.totals[loc] = 0;
+		}
 		var requestQuery = new Parse.Query(Parse.Object.extend("Request"));
 	    return requestQuery.find({
 	      	success : function(requests){
 	      		for (var i=0; i < requests.length; i++){
 	      			var location = requests[i].get("location");
 	      			$rootScope.requests[location].push(requests[i]);
+
+	      			//Update totals
+	      			$rootScope.totals['All'] += 1;
+	      			if($rootScope.locations.indexOf(location) > 8){
+	      				$rootScope.totals['East'] += 1;
+	      			} else{
+	      				$rootScope.totals['West'] += 1;
+	      			}
 	      		}
 	      		$rootScope.$apply();
 		        console.log("REQUESTS RETRIEVAL SUCCESS: ", $rootScope.requests);
+		        console.log("REQUEST TOTALS UPDATED: ", $rootScope.totals);
 		        $("#loader").hide();		        
 		    },
 		    error : function(error){
@@ -156,19 +173,58 @@ app.factory('parseLogic', function($rootScope, $location){
 	    });
 	}
 
-	service.submitRequest = function(location){
+	service.submitRequest = function(location, name, contact){
+		//IF USER IS REGISTERED, DELETE DUPLICATE REQUESTS FROM SERVER
+		if (name != 'Anonymous Rushee' && contact.toString().length == 10){
+			var Request = Parse.Object.extend("Request");
+			var requestQuery = new Parse.Query(Request);
+			requestQuery.equalTo("contact", contact);
+			requestQuery.find({
+				success : function(requests){
+					for (var i = 0; i < requests.length; i++){
+						if (requests[i].get("name") == name){
+							requests[i].destroy();
+						}
+					}
+					//THEN SEND A NEW REQUEST
+					service.sendNewRequest(location, name, contact);
+					console.log("SUCCESSFULLY REMOVED PREVIOUS REQUESTS");
+				},
+				error : function(requests, error){
+					console.log("FAILED TO REMOVE PREVIOUS REQUESTS");
+				}
+			})
+		} else{
+			//OTHERWISE, DESTORY PREVIOUS REQUEST, IF IT EXISTS;
+			if ($rootScope.lastRequest){
+				$rootScope.lastRequest.destroy();
+			}
+			$rootScope.me.contact = prompt("[Optional] Enter your Mobile Number \n (You can also login to save your information)");
+
+			service.sendNewRequest(location, name, parseInt($rootScope.me.contact));
+		}			
+	};
+
+	service.sendNewRequest = function(location, name, contact){
 		var Request = Parse.Object.extend("Request");
 		var request = new Request();
 		request.set("location", location);
-		if ($rootScope.me.contact){
-			request.set("contact", contact);
-		}
+		request.set("name", name);
+		request.set("contact", contact);
 		request.save(null, {
 			success: function(request){
+				$rootScope.refresh();
+				$rootScope.lastRequest = request;
+				$location.path($rootScope.returnPath);
+				$rootScope.requesting = false;
+				$rootScope.refresh();
 				alert("Your request has been registered, we will send a van to come get you shortly!");
 			},
-			error: function(error){
+			error: function(object, error){
+				$location.path($rootScope.returnPath);
+				$rootScope.requesting = false;
 				alert("Sorry, we were not able to process your request. Please check if you are connected to the internet.");
+				console.log(error);
 			}
 		});
 	}
@@ -202,7 +258,39 @@ app.factory('parseLogic', function($rootScope, $location){
         		console.log("FAILED TO ADD NEW VAN: ", error);
         	}
         })
-	}
+	};
+
+	service.setCopilot = function(contact, isDriving){
+		var userQuery = new Parse.Query(Parse.Object.extend("User"));
+        userQuery.equalTo("contact", contact);
+        userQuery.first({
+        	success : function(user){
+        		console.log("CURRENT USER", user);
+        		user.set("isDriving", isDriving);
+        		if (isDriving){
+        			user.set("vanID", $rootScope.currentVan.id);
+        		} else{
+        			user.set("vanID", undefined);
+        		}
+        		
+        		user.save(null, {
+		            success : function(){
+		            	if (isDriving){
+		            		console.log("NOW DRIVING WITH ", user.get("username"), user.get("isDriving"));
+		            	} else{
+		            		console.log("NO LONGER DRIVING WITH ", user.get("username"));
+		            	}
+		            },
+		            error : function(object, error){
+		                console.log("UNABLE TO SAVE COPILOT", error);
+		            }
+		        });
+        	}, 
+        	error : function(user, error){
+        		console.log("UNABLE TO FIND COPILOT: " + contact, error);
+        	}
+        })
+	};
 
 	service.handleLogin = function(name, password, isBrother, isCoordinator){
 		var userQuery = new Parse.Query(Parse.Object.extend("User"));

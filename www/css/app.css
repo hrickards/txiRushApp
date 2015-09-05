@@ -55,9 +55,11 @@ a{
 
 .window{
     height:100%;
+    width:100vw;
     left:inherit;
     margin-top: 4em;
-    overflow:hidden;
+    overflow-y: scroll; /* has to be scroll, not auto */
+    -webkit-overflow-scrolling: touch;
 }
 
 .selectable{
@@ -71,7 +73,7 @@ a{
 }
 
 .slideAll{
-    width:100%;
+    /*width:100%;*/
     position: fixed;
     margin-left: 17em;
 }
@@ -79,6 +81,7 @@ a{
 .navbar{
     position: fixed;
     left:0;
+    margin-left:inherit;
     top:0;
     width:100%;
     height:4em;
@@ -87,16 +90,19 @@ a{
     text-align: center;
 }
 
-.navbarSlide{
-    left: 17em;
-}
-
 #menubutton{
+    position:absolute;
+    left: 0;
+    margin-left:0;
     padding: 1em;
     height:2.2em;
-    width:auto;
     cursor:pointer;
-    float: left;
+}
+
+.backBtn{
+    position:absolute;
+    top:0.5em;
+    left:0.5em;
 }
 
 .refreshBtn{
@@ -119,9 +125,10 @@ a{
 }
 
 .title{
-    width:100%;
-    margin-top:0.1em;
-    margin-left:-2.7em;
+    width:auto;
+    padding:0;
+    margin:0;
+    margin-top:0.3em;
     background:none;
     border:none;
     font-size: 2.1em;
@@ -151,9 +158,8 @@ a{
 
 .footer{
     position: fixed;
-    left:inherit;
     bottom:0;
-    width:100%;
+    width:100vw;
     height:4em;
     background:#043266;
     color: white;

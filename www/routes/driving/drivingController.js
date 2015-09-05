@@ -18,7 +18,7 @@
 angular.module('txiRushApp')
   .controller('drivingController', ['$scope', '$http', '$rootScope', '$interval', '$route', '$location', 'parseLogic',
     function($scope, $http, $rootScope, $interval, $route, $location, parseLogic) {
-        if ($rootScope.notLogged || !$rootScope.isBrother){
+        if ($rootScope.notLogged || !$rootScope.isBrother || !$rootScope.configComplete){
             $location.path("/login");
         }
 
@@ -68,6 +68,8 @@ angular.module('txiRushApp')
         east.className = "startButton loopButton";
         var west = document.getElementById('West');
         west.className = "startButton loopButton";
+        var all = document.getElementById('All');
+        all.className = "startButton loopButton";
     };
     $rootScope.selectLoop = function(loop){
         $scope.loop = $rootScope.routes[loop];
@@ -84,8 +86,8 @@ angular.module('txiRushApp')
         }
     };
     $rootScope.selectCopilot = function(id, index){
+        $scope.copilot = $rootScope.brothers[index];
         $scope.copilotID = id;
-        $scope.copilotContact = $rootScope.brothers[index].get("contact");
         $scope.clearSelectedCopilots();
         var element = document.getElementById(id);
         element.className += " " + "selected";
@@ -97,8 +99,11 @@ angular.module('txiRushApp')
         $scope.setVisibility(true, false, true);
         $scope.full=false;
         $rootScope.currentRoute = $scope.loop;
+        $rootScope.requestHistory = [];
 
-        parseLogic.submitNewVan($scope.copilotID, $scope.copilotContact, $scope.loop);
+        $scope.copilot.set("isDriving", true);
+        $scope.copilot.save();
+        parseLogic.submitNewVan($scope.copilotID, $scope.copilot.get("contact"), $scope.loop);
     };
     
     $scope.complete = function(status){
@@ -138,30 +143,36 @@ angular.module('txiRushApp')
             }
         }
     };  
-
-    // $scope.update = function(loc){
-    //     var postString = "https://rushtxi.mit.edu/app/api/vans/clear/" + loc;
-    //     if (loc!='Theta Xi'){
-    //         var updatePromise = $http.post(postString);
-    //         updatePromise.success(function(data){
-    //             $rootScope.route = data.route;
-    //             $rootScope.currentLocation=data.current_location;
-    //         });
-    //     }
-    // }
     
     $scope.next = function(){
         if ($rootScope.currentVan.get("location") >= $rootScope.currentRoute.length - 1){
             $scope.done();
+        } else {
+            var location = $rootScope.currentRoute[$rootScope.currentVan.get("location")]
+            var requests = $rootScope.requests[location];
+            $rootScope.requestHistory.push(requests);
+            for (var i=0; i < requests.length; i++){
+                console.log(requests[i]);
+                requests[i].destroy();
+            }
+            $rootScope.currentVan.increment("location");
+            $rootScope.currentVan.save();
+            $rootScope.refresh();
         }
-        $rootScope.currentVan.increment("location");
-        $rootScope.currentVan.save();
     };
 
     $scope.back = function(){
-        if ($rootScope.currentLocation=='Theta Xi'){
-            $scope.end();
+        var lastRequests = $rootScope.requestHistory.pop();
+        for (var i=0; i < lastRequests.length; i++){
+            console.log(lastRequests[i]);
+            var Request = Parse.Object.extend("Request");
+            var request = new Request();
+            request.set("location", lastRequests[i].get("location"));
+            request.set("contact", lastRequests[i].get("contact"));
+            request.set("name", lastRequests[i].get("name"));
+            request.save()
         }
+        $rootScope.refresh();
         $rootScope.currentVan.increment("location", -1);
         $rootScope.currentVan.save();
     };
@@ -171,6 +182,8 @@ angular.module('txiRushApp')
       $rootScope.selectingCopilot=true;
       $rootScope.currentVan.destroy({
         success : function(object){
+            object.get("copilot").set("isDriving", false);
+            object.get("copilot").save();
             $rootScope.currentUser.set("isDriving", false);
             $rootScope.currentUser.set("vanID", '');
             $rootScope.currentUser.save();
